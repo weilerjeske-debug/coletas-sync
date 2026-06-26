@@ -1,9 +1,3 @@
-// ═══════════════════════════════════════════════════
-//  Servidor de sincronização de coletas
-//  Deploy gratuito: glitch.com ou railway.app
-//  Node.js + Express — sem banco de dados externo
-// ═══════════════════════════════════════════════════
-
 const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
@@ -13,7 +7,14 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'coletas_db.json');
 
-app.use(cors());
+// CORS aberto para qualquer origem (necessário para o HTML rodando localmente no tablet)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.options('*', cors()); // responde preflight
+
 app.use(express.json({ limit: '10mb' }));
 
 function loadDB() {
@@ -29,12 +30,12 @@ function saveDB(db) {
 
 let db = loadDB();
 
-// GET /records → retorna todos os registros
+// GET /records
 app.get('/records', (req, res) => {
   res.json({ records: db.records, total: db.records.length });
 });
 
-// POST /records → adiciona um registro
+// POST /records
 app.post('/records', (req, res) => {
   const { record } = req.body;
   if (!record || !record.id) return res.status(400).json({ error: 'Registro inválido' });
@@ -52,13 +53,13 @@ app.post('/records', (req, res) => {
   res.json({ ok: true, num: record.num, total: db.records.length });
 });
 
-// GET /export → download JSON
+// GET /export
 app.get('/export', (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="coletas_export.json"');
   res.json(db);
 });
 
-// DELETE /records → apaga tudo (protegido por senha)
+// DELETE /records
 app.delete('/records', (req, res) => {
   const { password } = req.body;
   if (password !== process.env.ADMIN_PASS) return res.status(401).json({ error: 'Não autorizado' });
@@ -69,7 +70,7 @@ app.delete('/records', (req, res) => {
 
 // Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', total: db.records.length, uptime: process.uptime() });
+  res.json({ status: 'ok', total: db.records.length, uptime: Math.round(process.uptime()) + 's' });
 });
 
 app.listen(PORT, () => console.log('Servidor rodando na porta ' + PORT));
